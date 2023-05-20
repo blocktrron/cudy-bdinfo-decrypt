@@ -1,3 +1,4 @@
 CC:=gcc
+LDFLAGS:=`pkg-config --silence-errors --keep-system-libs --libs openssl`
 all:
-	$(CC) cudydecrypt.c -o cudydecrypt $(pkg-config --silence-errors --libs openssl)
+	$(CC) cudydecrypt.c -o cudydecrypt $(LDFLAGS)
