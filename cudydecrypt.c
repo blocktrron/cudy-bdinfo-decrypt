@@ -162,7 +162,7 @@ int parse_bdinfo(char *buf, size_t buf_len) {
     for (i = 0; i < BDINFO_VAL_NUM_VALS && (bdval = &bdinfo_values[i])->line_ptr; i++) {
         ptr = strstr(bdval->line_ptr,BDINFO_KEY_VALUE_SEPARATOR);
         if (!ptr) {
-            /* ToDo: Invalid line */
+            fprintf(stderr, "Invalid line without separator\n");
             return 1;
         }
         bdval->key = bdval->line_ptr;
@@ -195,6 +195,12 @@ out:
     return ret;
 }
 
+void print_help(FILE *stream) {
+    fprintf(stream, "Usage: %s -i <input-file> [-o <output-file>] [-k <key>] [-r]\n\n");
+    fprintf(stream, "\t-k <key>\tRetrieve value of key\n");
+    fprintf(stream, "\t-r\tSkip RSA signature check\n");
+}
+
 int main(int argc, char *argv[]) {
     static struct bdinfo_args bdargs;
     char bdinfo_encrypted[BDINFO_LEN] = {};
@@ -209,6 +215,7 @@ int main(int argc, char *argv[]) {
     while ((c = getopt(argc, argv, "hi:o:k:r")) != -1) {
         switch (c) {
             case 'h':
+                print_help(stdout);
                 return 0;
             case 'i':
                 bdargs.input_file = optarg;
@@ -223,6 +230,7 @@ int main(int argc, char *argv[]) {
                 bdargs.skip_rsa = 1;
                 break;
             default:
+                print_help(stderr);
                 return 1;
         }
     }
