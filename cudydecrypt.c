@@ -144,7 +144,8 @@ int parse_bdinfo(char *buf, size_t buf_len) {
         fprintf(stderr, "EOF Marker not found\n");
         return 1;
     }
-    if (eof_marker + (strlen(BDINFO_END_MAGIC)) > buf + buf_len || (eof_marker != buf && *(eof_marker - 1) != '\n')) {
+    if (eof_marker + (strlen(BDINFO_END_MAGIC)) + 2 > buf + buf_len ||
+        (eof_marker != buf && *(eof_marker - 1) != '\n' && *(eof_marker + 1) != '\n' && *(eof_marker + 2) != 0)) {
         fprintf(stderr, "Invalid EOF Marker\n");
         return 1;
     }
@@ -278,7 +279,7 @@ int main(int argc, char *argv[]) {
             goto out;
         }
     } else {
-        ret = parse_bdinfo(bdinfo_decrypted, BDINFO_LEN);
+        ret = parse_bdinfo(bdinfo_decrypted, BDINFO_DEC_LEN);
         if (ret) {
             fprintf(stderr, "Error parsing bdinfo\n");
             goto out;
