@@ -44,7 +44,7 @@ int decrypt(char *input, char *output, size_t length) {
     return 0;
 }
 
-int print_bdinfo(char *key) {
+int print_bdinfo(const char *key) {
     struct bdinfo_value *bdval;
     int ret = 0;
     int i;
@@ -55,7 +55,7 @@ int print_bdinfo(char *key) {
 
     for (i = 0; i < BDINFO_VAL_NUM_VALS && (bdval = &bdinfo_values[i])->line_ptr; i++) {
         if (key) {
-            if (strcmp(bdval->key, key)) {
+            if (strcmp(bdval->key, key) != 0) {
                 continue;
             }
 
@@ -190,17 +190,20 @@ int main(int argc, char *argv[]) {
 
     ret = decrypt(bdinfo_encrypted + 4, bdinfo_decrypted, BDINFO_DEC_LEN);
     if (ret) {
+        fprintf(stderr, "Error decrypting bdinfo\n");
         goto out;
     }
 
     if (bdargs.output_file) {
         ret = write_output(bdargs.output_file, bdinfo_decrypted, BDINFO_LEN);
         if (ret) {
+            fprintf(stderr, "Error writing output file\n");
             goto out;
         }
     } else {
         ret = parse_bdinfo(bdinfo_decrypted, BDINFO_LEN);
         if (ret) {
+            fprintf(stderr, "Error parsing bdinfo\n");
             goto out;
         }
 
