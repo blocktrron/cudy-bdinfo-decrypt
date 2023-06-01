@@ -2,13 +2,23 @@
 #include <stdlib.h>
 #include <openssl/des.h>
 #include <openssl/rsa.h>
+#include <openssl/md5.h>
 #include <openssl/pem.h>
-#include <openssl/err.h>
 #include <getopt.h>
 
 #define DES_KEY		"88T3j05dtFu8="
+#define RSA_KEY      "-----BEGIN RSA PUBLIC KEY-----\n\
+MIGJAoGBAK7cBjOnooyuBwJqTfXqcHnIPvxDPbm6IsEc wtDlwKDukESn5X+v8Bre\n\
+xK3zylUPu1kAIFY53x+BQjnBgatYIXsffgjmm9uHqIrJlc9v8Vh4RXgCITcc4ZvB\n\
+NBmreHQqVO FVbF5Z5XHVgTE/8dfXRqmzuuKub9MksTpfBb8bqEhbAgMBAAE=\n\
+-----END RSA PUBLIC KEY-----"
+
+
 #define BDINFO_LEN  0xde96
+#define BDINFO_DATA_LEN 0xdd80
 #define BDINFO_DEC_LEN  0xdd7c
+#define BDINFO_RSA_OFFSET   0xdd80
+#define BDINFO_RSA_LEN      0x80
 
 #define BDINFO_END_MAGIC    "BDINFO_END"
 
@@ -25,9 +35,56 @@ struct bdinfo_args {
     const char *input_file;
     const char *output_file;
     const char *key;
+    int skip_rsa;
 };
 
 struct bdinfo_value bdinfo_values[BDINFO_VAL_NUM_VALS];
+
+int validate_bdinfo_md5(unsigned char *input, size_t length) {
+    unsigned char md5_output[MD5_DIGEST_LENGTH];
+    unsigned char rsa_md5[BDINFO_RSA_LEN];
+    RSA *rsa = NULL;
+    BIO *bp = NULL;
+    int ret = 0;
+    int sz;
+
+    bp = BIO_new_mem_buf(RSA_KEY, strlen(RSA_KEY));
+    if (!bp) {
+        fprintf(stderr, "Error allocating RSA public key\n");
+        ret = 1;
+        goto out;
+    }
+
+    rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
+    if (!rsa) {
+        fprintf(stderr, "Error reading RSA public key\n");
+        ret = 1;
+        goto out;
+    }
+
+    sz = RSA_public_decrypt(BDINFO_RSA_LEN, &input[BDINFO_RSA_OFFSET], rsa_md5, rsa, 1);
+    if (sz < 10) {
+        fprintf(stderr, "Error decrypting RSA digest\n");
+        ret = 1;
+        goto out;
+    }
+
+    MD5(input, BDINFO_DATA_LEN, md5_output);
+    if (memcmp(rsa_md5, md5_output, MD5_DIGEST_LENGTH) != 0) {
+        fprintf(stderr, "Error validating MD5\n");
+        ret = 1;
+        goto out;
+    }
+
+out:
+    if (rsa) {
+        RSA_free(rsa);
+    }
+    if (bp) {
+        BIO_free(bp);
+    }
+    return ret;
+}
 
 int decrypt(char *input, char *output, size_t length) {
     DES_cblock deskey = {};
@@ -149,7 +206,7 @@ int main(int argc, char *argv[]) {
 
     memset(&bdargs, 0, sizeof(bdargs));
 
-    while ((c = getopt(argc, argv, "hi:o:k:")) != -1) {
+    while ((c = getopt(argc, argv, "hi:o:k:r")) != -1) {
         switch (c) {
             case 'h':
                 return 0;
@@ -161,6 +218,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'o':
                 bdargs.output_file = optarg;
+                break;
+            case 'r':
+                bdargs.skip_rsa = 1;
                 break;
             default:
                 return 1;
@@ -186,6 +246,15 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Read bytes does not equal expected value\n");
         ret = 1;
         goto out;
+    }
+
+    if (!bdargs.skip_rsa) {
+        ret = validate_bdinfo_md5(bdinfo_encrypted, BDINFO_LEN);
+        if (ret) {
+            fprintf(stderr, "Error checking RSA signature\n");
+            ret = 1;
+            goto out;
+        }
     }
 
     ret = decrypt(bdinfo_encrypted + 4, bdinfo_decrypted, BDINFO_DEC_LEN);
