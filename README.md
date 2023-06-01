@@ -5,10 +5,10 @@ Decrypts the bdinfo partition of cudy routers.
 ## Format
 
 | Offset | Length | Description |
-|--------|--------|------------|
-| 0x00   | 0x4    | Version    |
-| 0x04   | 0xDD7C | Data       |
-| 0xDD80 | 0x80   | RSA  |
+|--------|--------|-------------|
+| 0x00   | 0x4    | Version     |
+| 0x04   | 0xDD7C | Data        |
+| 0xDD80 | 0x80   | RSA         |
 
 ### Version
 
